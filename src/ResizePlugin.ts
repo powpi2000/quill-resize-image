@@ -35,6 +35,7 @@ const template = `
     <a class="btn" data-type="width" data-styles="width:100%">100%</a>
     <a class="btn" data-type="width" data-styles="width:50%">50%</a>
     <span class="input-wrapper"><input data-type="width" maxlength="3" /><span class="suffix">%</span><span class="tooltip">{5}</span></span>
+    <span class="input-wrapper"><input data-type="width-px" maxlength="3" /><span class="suffix">px</span><span class="tooltip">{5}</span></span>
     <a class="btn" data-type="width" data-styles="width:auto">{4}</a>
   </div>
   <div class="group">
@@ -42,6 +43,9 @@ const template = `
     <a class="btn" data-type="align" data-styles="display:block;margin:auto;">{2}</a>
     <a class="btn" data-type="align" data-styles="float:right;">{3}</a>
     <a class="btn" data-type="align" data-styles="">{4}</a>
+  </div>
+  <div class="group">
+    <input type="text" data-type="url" placeholder="超連結" value="{6}" />
   </div>
 </div>
 `;
@@ -72,7 +76,7 @@ class ResizePlugin {
     
     this.editor = editor;
     this.container = container;
-    this.initResizer();
+    this.initResizer(resizeTarget);
     this.positionResizerToTarget(resizeTarget);
 
     this.resizing = this.resizing.bind(this);
@@ -84,7 +88,10 @@ class ResizePlugin {
     this.bindEvents();
   }
 
-  initResizer() {
+  initResizer(el: HTMLElement) {
+    /// if is el'parent is a tag, get url from href
+    const aTag = el.parentElement;
+    const url = aTag && aTag.tagName.toLowerCase() == "a" ? aTag.getAttribute("href") : "";
     let resizer: HTMLElement | null =
       this.container.querySelector("#editor-resizer");
     if (!resizer) {
@@ -97,7 +104,8 @@ class ResizePlugin {
         this.i18n.findLabel("center"),
         this.i18n.findLabel("floatRight"),
         this.i18n.findLabel("restore"),
-        this.i18n.findLabel("inputTip")
+        this.i18n.findLabel("inputTip"),
+        url
       );
       this.container.appendChild(resizer);
     }
@@ -140,8 +148,40 @@ class ResizePlugin {
     const target: HTMLInputElement = e.target as HTMLInputElement;
     const type = target?.dataset?.type;
     const value = target.value;
-    if (type && Number(value)) {
+    if (type=='width' && Number(value)) {
       this._setStylesForToolbar(type, `width: ${Number(value)}%;`);
+    } else if (type=='width-px' && Number(value)) {
+      this._setStylesForToolbar(type, `width: ${Number(value)}px;`);
+    } else if (type=='url') {
+      // check target is wrapper with a tag, if not and value not empyt, create a tag wrapper target
+      const aTag = this.resizeTarget.parentElement?.querySelector("a");
+      if (aTag) {
+        aTag.setAttribute("href", value);
+      }
+      if (value) {
+        if (!aTag) {
+          /// resize wrapper with a tag
+          const rtarget = this.resizeTarget.cloneNode(true) as ResizeElement;
+          
+         
+          const a = document.createElement("a");
+          a.setAttribute("href", value);
+          a.setAttribute("target", "_self");
+          /// target appendChild in a
+          const op = this.resizeTarget.parentElement;
+          a.appendChild(rtarget);
+          op?.removeChild(this.resizeTarget);
+          op?.appendChild(a);
+        }
+      }
+      if (aTag && !value) {
+        /// remove a tag
+        const rtarget = this.resizeTarget.cloneNode(true) as ResizeElement;
+        const op = this.resizeTarget.parentElement;
+        op?.removeChild(aTag);
+        op?.appendChild(rtarget);
+      }
+
     }
   }
   toolbarClick(e: MouseEvent) {
